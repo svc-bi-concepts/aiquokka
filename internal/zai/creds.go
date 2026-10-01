@@ -1,4 +1,5 @@
-// Package zai reports Z.ai (GLM) usage bundles and cash balance.
+// Package zai reports GLM Coding Plan usage windows plus Z.ai usage bundles
+// and cash balance.
 package zai
 
 import (
@@ -12,20 +13,55 @@ import (
 	"github.com/McKean/aiquokka/internal/usage"
 )
 
-// loadKey returns the Z.ai API key, trying $ZAI_API_KEY first and then the
-// key stored by the pi coding agent (~/.pi/agent/models.json), which reads
-// its Z.ai credentials the same way. Z.ai keys have the form "{id}.{secret}".
+// userHomeDir is a test seam: it lets tests point the pi config lookup at a
+// temp HOME instead of the real one.
+var userHomeDir = os.UserHomeDir
+
+// loadKey returns the Z.ai API key, trying $ZAI_API_KEY first, then the key
+// the pi coding agent stores in ~/.pi/agent/auth.json ("zai" -> {type:
+// "api_key", key: "..."}), and finally the zai provider entry in
+// ~/.pi/agent/models.json. Z.ai keys have the form "{id}.{secret}". The key
+// is only ever used for requests — it is never printed or logged.
 func loadKey() (string, error) {
 	if v := strings.TrimSpace(os.Getenv("ZAI_API_KEY")); v != "" {
 		return v, nil
 	}
-	home, err := os.UserHomeDir()
-	if err == nil {
-		if key := piKey(filepath.Join(home, ".pi", "agent", "models.json")); key != "" {
+	if home, err := userHomeDir(); err == nil {
+		piAgent := filepath.Join(home, ".pi", "agent")
+		if key := authKey(filepath.Join(piAgent, "auth.json")); key != "" {
+			return key, nil
+		}
+		if key := piKey(filepath.Join(piAgent, "models.json")); key != "" {
 			return key, nil
 		}
 	}
 	return "", usage.NotConfigured("no Z.ai API key found — set ZAI_API_KEY ({id}.{secret}) or configure the zai provider in pi")
+}
+
+// authKey extracts the Z.ai credential from a pi auth.json file, which maps
+// provider names to credential entries like {"zai": {"type": "api_key",
+// "key": "..."}}. It returns "" when the file is missing, unreadable, or
+// has no api_key zai entry. The returned key is never logged.
+func authKey(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	var cfg map[string]struct {
+		Type string `json:"type"`
+		Key  string `json:"key"`
+	}
+	if json.Unmarshal(data, &cfg) != nil {
+		return ""
+	}
+	entry, ok := cfg["zai"]
+	if !ok {
+		return ""
+	}
+	if entry.Type != "" && entry.Type != "api_key" {
+		return "" // e.g. an OAuth entry — not a raw API key
+	}
+	return strings.TrimSpace(entry.Key)
 }
 
 // piKey extracts providers.zai.apiKey from a pi models.json file, returning ""
