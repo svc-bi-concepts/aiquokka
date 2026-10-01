@@ -131,7 +131,7 @@ machine and queries the same usage endpoint that CLI uses.
 | `deepseek` | `$DEEPSEEK_API_KEY` | `api.deepseek.com/user/balance` |
 | `kiro`   | Kiro CLI credential store (via `kiro-cli /usage`) | `q.<region>.amazonaws.com/getUsageLimits` |
 | `agy`    | `~/.gemini/antigravity-cli/antigravity-oauth-token` | `daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota` |
-| `zai`    | `$ZAI_API_KEY`, or the zai provider in `~/.pi/agent/models.json` | `api.z.ai/api/biz/tokenAccounts/list/my`, `api.z.ai/api/biz/account/query-customer-account-report` |
+| `zai`    | `$ZAI_API_KEY`, or the zai `api_key` in `~/.pi/agent/auth.json`, or the zai provider in `~/.pi/agent/models.json` | `api.z.ai/api/monitor/usage/quota/limit` (GLM Coding Plan windows), `api.z.ai/api/biz/tokenAccounts/list/my`, `api.z.ai/api/biz/account/query-customer-account-report` |
 
 Every provider that uses a short-lived OAuth access token (all except the
 static API-key providers Kimi and DeepSeek) **refreshes automatically** when
