@@ -32,6 +32,14 @@ func TestWindowResetsIn(t *testing.T) {
 		{"resets in under a second", now.Add(250 * time.Millisecond), 250 * time.Millisecond},
 		{"resets in 25 hours (crosses a day)", now.Add(25 * time.Hour), 25 * time.Hour},
 		{"resets exactly now", now, 0},
+		// Sub-second boundary cases. time.Duration is an integer count of
+		// nanoseconds, so ResetsAt == now-1ns exercises the exact value of d
+		// (-1ns) where "d < 0" and "d < -1" diverge: the contract demands 0,
+		// never a tiny negative duration. now-2ns pins the neighbour value and
+		// now+1ns pins the smallest positive result.
+		{"reset time passed by one nanosecond", now.Add(-time.Nanosecond), 0},
+		{"reset time passed by two nanoseconds", now.Add(-2 * time.Nanosecond), 0},
+		{"resets in exactly one nanosecond", now.Add(time.Nanosecond), time.Nanosecond},
 		{"reset time already passed by a second", now.Add(-time.Second), 0},
 		{"reset time passed hours ago", now.Add(-3 * time.Hour), 0},
 	}
