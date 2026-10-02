@@ -31,6 +31,21 @@ type Window struct {
 	Duration time.Duration `json:"-" yaml:"-"`
 }
 
+// ResetsIn returns how long until the window's allowance resets, measured
+// from now. It returns -1 when the reset time is unknown, and 0 once the
+// reset time has been reached or passed (it never returns a negative
+// duration).
+func (w Window) ResetsIn(now time.Time) time.Duration {
+	if w.ResetsAt.IsZero() {
+		return -1
+	}
+	d := w.ResetsAt.Sub(now)
+	if d < 0 {
+		return 0
+	}
+	return d
+}
+
 // Pace returns the fraction (0-1) of the window that has elapsed at now — the
 // point at which usage would sit if consumed evenly. It returns -1 when the
 // window's timing is unknown.
