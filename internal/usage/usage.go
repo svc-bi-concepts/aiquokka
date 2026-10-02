@@ -50,6 +50,20 @@ func (w Window) Pace(now time.Time) float64 {
 	return frac
 }
 
+// ResetsIn returns how long until the window's allowance resets at now. It
+// returns -1 when the reset time is unknown and 0 once the reset has arrived —
+// it never returns a negative duration.
+func (w Window) ResetsIn(now time.Time) time.Duration {
+	if w.ResetsAt.IsZero() {
+		return -1
+	}
+	remaining := w.ResetsAt.Sub(now)
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
+}
+
 // Report is a provider's full usage picture.
 type Report struct {
 	// Provider is the display name, e.g. "Claude".
