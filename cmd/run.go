@@ -170,14 +170,20 @@ func runAllStructured(ctx context.Context, providers []provider) error {
 	for _, r := range results {
 		switch {
 		case r.err == nil:
-			out[strings.ToLower(r.name)] = r.report
+			out[jsonKey(r.name)] = r.report
 		case usage.IsNotConfigured(r.err):
 			// Skip providers the user doesn't use.
 		default:
-			out[strings.ToLower(r.name)] = map[string]string{"error": r.err.Error()}
+			out[jsonKey(r.name)] = map[string]string{"error": r.err.Error()}
 		}
 	}
 	return emit(out)
+}
+
+// jsonKey derives the aggregate-output key for a provider name. Dots and
+// spaces are dropped so keys are clean jq paths, e.g. "Z.ai" -> "zai".
+func jsonKey(name string) string {
+	return strings.NewReplacer(".", "", " ", "").Replace(strings.ToLower(name))
 }
 
 // runAllBatch waits for every provider, then prints in fixed provider order.

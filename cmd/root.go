@@ -55,7 +55,7 @@ func newRootCmd() *cobra.Command {
   aiquokka deepseek  account balance
   aiquokka kiro     Kiro CLI monthly credits and overage status
   aiquokka agy      daily antigravity limits
-  aiquokka zai      Z.ai usage bundles and cash balance
+  aiquokka zai      Z.ai GLM Coding Plan windows, bundles and cash balance
 
   --watch           refresh every 60s; press r to refresh now, q/Ctrl+C to stop`,
 		Args:          cobra.NoArgs,
