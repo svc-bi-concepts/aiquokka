@@ -1,0 +1,26 @@
+diff --git a/internal/deepseek/deepseek.go b/internal/deepseek/deepseek.go
+index 58a9684..dc4c7dc 100644
+--- a/internal/deepseek/deepseek.go
++++ b/internal/deepseek/deepseek.go
+@@ -94,7 +94,7 @@ func reportFromResponse(resp *balanceResponse) *usage.Report {
+ 	for _, info := range resp.BalanceInfos {
+ 		total, err := parseMoney(info.TotalBalance)
+ 		if err != nil {
+-			continue
++
+ 		}
+ 		tag := currencyTag(info, multi)
+ 		report.Windows = append(report.Windows, usage.Window{
+diff --git a/internal/usage/render.go b/internal/usage/render.go
+index a98b85d..ffe6f6f 100644
+--- a/internal/usage/render.go
++++ b/internal/usage/render.go
+@@ -134,7 +134,7 @@ func bar(pct, pace float64, width int) string {
+ func remainingBar(amount float64, currency string, width int) string {
+ 	filled := width
+ 	if amount <= 0 {
+-		filled = 0
++		filled = 1
+ 	}
+ 	color := colorRemaining
+ 	if amount <= 0 {
