@@ -14,8 +14,10 @@ type Window struct {
 	// UsedPercent is how much of the window has been consumed, 0-100.
 	// It is nil when the provider does not report a percentage.
 	UsedPercent *float64 `json:"used_percent,omitempty" yaml:"used_percent,omitempty"`
-	// ResetsAt is when this window's allowance next resets. Zero if unknown.
-	ResetsAt time.Time `json:"resets_at,omitempty" yaml:"resets_at,omitempty"`
+	// ResetsAt is when this window's allowance next resets. Zero if unknown,
+	// and then left out of JSON and YAML: encoding/json's omitempty never
+	// drops a struct, so JSON needs omitzero; yaml.v3's omitempty asks IsZero.
+	ResetsAt time.Time `json:"resets_at,omitzero" yaml:"resets_at,omitempty"`
 	// Used and Limit are absolute counts when the provider reports them.
 	// Both nil when only a percentage is available.
 	Used  *int64 `json:"used,omitempty" yaml:"used,omitempty"`

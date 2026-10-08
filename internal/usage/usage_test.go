@@ -63,3 +63,36 @@ func TestWindowYAMLDurationSeconds(t *testing.T) {
 		t.Fatalf("YAML =\n%s\nwant duration_seconds only on the window with a Duration", got)
 	}
 }
+
+func TestWindowJSONResetsAt(t *testing.T) {
+	reset := time.Date(2026, 10, 8, 18, 0, 0, 0, time.UTC)
+	b, err := json.Marshal(Report{Provider: "Z.ai", Windows: []Window{
+		{Label: "5h", ResetsAt: reset},
+		{Label: "Cash"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(b)
+	if !strings.Contains(got, `"resets_at":"2026-10-08T18:00:00Z"`) {
+		t.Fatalf("JSON = %s, want resets_at on the 5h window", got)
+	}
+	if strings.Count(got, "resets_at") != 1 || strings.Contains(got, "0001-01-01") {
+		t.Fatalf("JSON = %s, want no resets_at on the window without a reset", got)
+	}
+}
+
+func TestWindowYAMLResetsAt(t *testing.T) {
+	reset := time.Date(2026, 10, 8, 18, 0, 0, 0, time.UTC)
+	b, err := yaml.Marshal(Report{Provider: "Z.ai", Windows: []Window{
+		{Label: "5h", ResetsAt: reset},
+		{Label: "Cash"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(b)
+	if strings.Count(got, "resets_at") != 1 || strings.Contains(got, "0001-01-01") {
+		t.Fatalf("YAML =\n%s\nwant resets_at only on the window with a reset", got)
+	}
+}
