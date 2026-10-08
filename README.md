@@ -94,6 +94,15 @@ extra:
     value: "yes"
 ```
 
+## Development
+
+Build and test from a checkout:
+
+```sh
+go build -o aiquokka .
+go vet ./... && go test ./...   # the same as the merge gate, .yardr/check
+```
+
 ## The pace marker
 
 Every bar carries a bright-cyan marker cell at the point where **even, linear
