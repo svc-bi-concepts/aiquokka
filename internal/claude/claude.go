@@ -47,10 +47,7 @@ func Fetch(ctx context.Context) (*usage.Report, error) {
 
 	var resp usageResponse
 	err = httpx.GetJSON(ctx, usageEndpoint, &resp, func(r *http.Request) {
-		r.Header.Set("Authorization", "Bearer "+creds.AccessToken)
-		r.Header.Set("anthropic-beta", "oauth-2025-04-20")
-		r.Header.Set("User-Agent", userAgent)
-		r.Header.Set("Accept", "application/json")
+		setAuthHeaders(r, creds)
 	})
 	if err != nil {
 		return nil, err
@@ -58,7 +55,7 @@ func Fetch(ctx context.Context) (*usage.Report, error) {
 
 	report := &usage.Report{
 		Provider: "Claude",
-		Plan:     plan(creds),
+		Plan:     livePlan(ctx, creds),
 	}
 	for _, w := range []*usage.Window{
 		resp.window("session", "5h", 5*time.Hour),
@@ -70,6 +67,14 @@ func Fetch(ctx context.Context) (*usage.Report, error) {
 		}
 	}
 	return report, nil
+}
+
+// setAuthHeaders sets what the OAuth endpoints (usage, profile) require.
+func setAuthHeaders(r *http.Request, o *oauth) {
+	r.Header.Set("Authorization", "Bearer "+o.AccessToken)
+	r.Header.Set("anthropic-beta", "oauth-2025-04-20")
+	r.Header.Set("User-Agent", userAgent)
+	r.Header.Set("Accept", "application/json")
 }
 
 func plan(o *oauth) string {
