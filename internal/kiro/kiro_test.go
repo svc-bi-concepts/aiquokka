@@ -32,6 +32,10 @@ func TestParseUsage(t *testing.T) {
 	if !window.ResetsAt.Equal(wantReset) {
 		t.Fatalf("reset = %s, want %s", window.ResetsAt, wantReset)
 	}
+	// A monthly cycle: 1 Aug to 1 Sep.
+	if want := 31 * 24 * time.Hour; window.Duration != want {
+		t.Fatalf("duration = %s, want %s", window.Duration, want)
+	}
 	if len(report.Extra) != 2 || report.Extra[0].Value != "2.94 / 1000 covered in plan" ||
 		report.Extra[1].Value != "Disabled (managed by your organization)" {
 		t.Fatalf("unexpected facts: %#v", report.Extra)

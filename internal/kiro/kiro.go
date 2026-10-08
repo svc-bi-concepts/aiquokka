@@ -88,6 +88,11 @@ func parseUsage(raw string, now time.Time) (*usage.Report, error) {
 		month, _ := strconv.Atoi(reset[1])
 		day, _ := strconv.Atoi(reset[2])
 		window.ResetsAt = nextReset(month, day, now)
+		if !window.ResetsAt.IsZero() {
+			// Kiro credits run on a monthly billing cycle: the window starts one
+			// month before its reset, as for Copilot.
+			window.Duration = window.ResetsAt.Sub(window.ResetsAt.AddDate(0, -1, 0))
+		}
 	}
 	report.Windows = append(report.Windows, window)
 	report.Extra = append(report.Extra, usage.Fact{

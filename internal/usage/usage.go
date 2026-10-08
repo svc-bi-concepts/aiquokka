@@ -1,7 +1,10 @@
 // Package usage defines the common data model that every provider reports.
 package usage
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Window is a single rate-limit window (e.g. a 5-hour rolling window or a
 // weekly window) as reported by a provider.
@@ -27,9 +30,31 @@ type Window struct {
 	Currency string `json:"currency,omitempty" yaml:"currency,omitempty"`
 	// Duration is the full length of the window (e.g. 5h, 7d). When set along
 	// with ResetsAt it lets the renderer draw a linear-pace marker showing where
-	// even consumption would put you at the current time.
+	// even consumption would put you at the current time. JSON and YAML carry
+	// it as duration_seconds (see MarshalJSON), which consumers match windows by.
 	Duration time.Duration `json:"-" yaml:"-"`
 }
+
+// windowFields is Window without its methods, so the marshalers below can
+// encode its tagged fields without recursing into themselves.
+type windowFields Window
+
+// encodedWindow is a Window as written to JSON and YAML: its fields plus the
+// window length in whole seconds, omitted when unknown.
+type encodedWindow struct {
+	windowFields    `yaml:",inline"`
+	DurationSeconds int64 `json:"duration_seconds,omitempty" yaml:"duration_seconds,omitempty"`
+}
+
+func (w Window) encoded() encodedWindow {
+	return encodedWindow{windowFields(w), int64(w.Duration / time.Second)}
+}
+
+// MarshalJSON writes the window with duration_seconds added.
+func (w Window) MarshalJSON() ([]byte, error) { return json.Marshal(w.encoded()) }
+
+// MarshalYAML writes the window with duration_seconds added.
+func (w Window) MarshalYAML() (any, error) { return w.encoded(), nil }
 
 // Pace returns the fraction (0-1) of the window that has elapsed at now — the
 // point at which usage would sit if consumed evenly. It returns -1 when the

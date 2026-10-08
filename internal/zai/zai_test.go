@@ -320,6 +320,25 @@ func TestQuotaWindowWeeklyAndMCPPrefix(t *testing.T) {
 	}
 }
 
+// The coding-plan windows reach --json with the lengths consumers match on.
+func TestQuotaWindowsJSONDurationSeconds(t *testing.T) {
+	for _, tc := range []struct {
+		lim  quotaLimit
+		want string
+	}{
+		{quotaLimit{Type: "CREDIT_LIMIT", Unit: 3, Number: 5, Usage: 12000, CurrentValue: 176}, `"duration_seconds":18000`},
+		{quotaLimit{Type: "CREDIT_LIMIT", Unit: 6, Number: 1, Usage: 60000, CurrentValue: 5288}, `"duration_seconds":604800`},
+	} {
+		b, err := json.Marshal(quotaWindow(tc.lim))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(b), tc.want) {
+			t.Fatalf("JSON = %s, want %s", b, tc.want)
+		}
+	}
+}
+
 func TestAppendQuota(t *testing.T) {
 	report := &usage.Report{Provider: "Z.ai"}
 	appendQuota(report, &quotaData{
