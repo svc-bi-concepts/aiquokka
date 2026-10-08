@@ -49,3 +49,15 @@ func TestLivePlanFallsBackOnEmptyProfile(t *testing.T) {
 		t.Fatalf("plan = %q, want %q", got, want)
 	}
 }
+
+// A profile that names only one field must not drop the cached other one.
+func TestLivePlanKeepsCachedFieldTheProfileOmits(t *testing.T) {
+	fakeProfile(t, http.StatusOK, `{"organization":{"organization_type":"claude_max"}}`)
+	if got, want := livePlan(context.Background(), cached), "max/default_claude_max_5x"; got != want {
+		t.Fatalf("plan = %q, want %q", got, want)
+	}
+	fakeProfile(t, http.StatusOK, `{"organization":{"rate_limit_tier":"default_claude_max_20x"}}`)
+	if got, want := livePlan(context.Background(), cached), "max/default_claude_max_20x"; got != want {
+		t.Fatalf("plan = %q, want %q", got, want)
+	}
+}
