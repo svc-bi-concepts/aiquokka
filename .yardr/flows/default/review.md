@@ -13,8 +13,9 @@ the commit, the result. The builder's gate line is not a substitute. One note
 on the bead says how the review ended. Outcomes:
 
 - `done`, approved: the note says what you checked, what you fixed (commits),
-  the gate result, and any remaining risk. The bead is landed from
-  `approved`.
+  the gate result, and any remaining risk outside this bead's goal (filed as
+  a bead and named; nothing inside the goal is left open). The bead is landed
+  from `approved`.
 - `changes`, it needs the builder: the design is wrong, the bead was misread,
   or a large part is missing. The note gives concrete, actionable findings,
   and the bead goes back to `new`. If the notes show the bead has already

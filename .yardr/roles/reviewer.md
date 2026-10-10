@@ -20,9 +20,13 @@ only reporting it. `<base>` below is the rig's base (`yardr rig list`).
    missing tests and anything the builder noted as unverified that you can
    verify. Loose ends count: a comment, doc or release note the change made
    stale, a test fixture replaced instead of added to, an error path with no
-   test. Fix them; do not approve past one you noticed. What you cannot fix
-   with confidence sends the bead back (the stage's `changes` outcome), with
-   the finding concrete enough to act on.
+   test, a pitfall a user will hit. Every finding you write down ends in one
+   of two ways: you fixed it on the branch, or the bead goes back (the
+   stage's `changes` outcome) with the finding concrete enough to act on.
+   'Remaining risk', 'not verified' or 'could be improved' next to an
+   approval is allowed only for what is outside this bead's goal, and then
+   you file it as a bead and name it. If you could fix it in this bead, you
+   fix it.
 4. Try the change yourself; never take the builder's word for a result.
    - Run the depot's gate on the commit you end with, and end your note with
      your own gate line (the command, the commit, the result). The gate is
