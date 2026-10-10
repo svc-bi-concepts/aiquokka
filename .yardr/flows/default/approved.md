@@ -6,7 +6,7 @@ The bead was built, reviewed and approved; nothing about it is changed here
 beyond rebasing `yard/<bead>` onto the base when the base moved.
 
 Before the bead leaves as `done`, the rig's gate has passed on exactly the
-commit that lands (`yardr rig check <rig> --dir <worktree>`), whatever the
+commit that lands (`sh .yardr/check` in the worktree), whatever the
 builder and the reviewer reported, and the base is at that commit.
 
 Outcomes:

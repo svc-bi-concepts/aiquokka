@@ -24,7 +24,7 @@ its rebase, so the tree is clean and the branch is as it was approved.
    usually a union (both new cases, both new fields, both doc paragraphs),
    sometimes an adaptation (the bead's code calling a function the base
    renamed). Then `git add` and `git rebase --continue`.
-4. Run the rig's gate in the worktree: `yardr rig check <rig> --dir .`. A red
+4. Run the depot's gate in the worktree: `sh .yardr/check`. A red
    gate after your resolution is yours to fix; a test that the base broke on
    its own is not, say so in the note.
 5. Leave one note on the bead beginning exactly `merge re-review:`. It must

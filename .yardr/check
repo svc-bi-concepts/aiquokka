@@ -1,6 +1,7 @@
 #!/bin/sh
-# The merge gate of rig aiquokka: yardr rig check runs it in a bead's worktree, and
-# a bead lands only when it exits 0. yardr reads this file from the base
-# branch (origin/main), so an edit here counts once it has landed there.
+# The depot's test command, the merge gate of rig aiquokka: yardr runs it in a
+# bead's worktree before hand-on and at landing, and a bead lands only when it
+# exits 0. yardr reads this file from the base branch (origin/main), so an edit
+# here counts once it has landed there.
 set -e
 go vet ./... && go test ./...

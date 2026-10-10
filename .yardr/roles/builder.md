@@ -7,20 +7,12 @@ You implement one bead, in its own worktree on branch `yard/<bead>`.
    names match their neighbours. Prefer extending what is there over a new
    concept, flag, setting or special case. Where the bead forces one, say
    so in your note, under Choices if the bead asks for that section.
-3. Check your work with the rig's light gate before you hand on, after your
-   last commit: `yardr rig check <rig> --light --dir <your worktree>`. It is
-   read from the rig's base, so editing it on your branch does not change
-   what you must pass. A rig without a light gate runs its full gate there,
-   and the first line of the output says so. Beyond it, run the tests of
-   what you changed, as you judge.
-   The full gate (`yardr rig check <rig> --dir <your worktree>`) runs once,
-   on exactly what lands, after review, and a red one comes back to you. Run
-   it yourself only when your change is of a kind the light gate cannot see:
-   cross-package behaviour or tests in packages it skips, race coverage
-   outside the packages it selects, slow suites, or code reached only by
-   building the binary. What those are depends on the rig's light gate (its
-   `.yardr/check-light` says). An edit to a gate's own script is run by
-   neither gate: run your copy by hand.
+3. Check your work with the depot's gate before you hand on, after your last
+   commit: run `.yardr/check` from your worktree root (`sh .yardr/check`). It
+   is the depot's test command, and yardr runs the same gate before hand-on
+   and again at landing. It is read from the base, so editing it on your
+   branch does not change what you must pass; if you do edit it, run your copy
+   by hand. Beyond it, run the tests of what you changed, as you judge.
    Every bug you find or fix gets a regression test.
 4. Test anything that starts agents or servers in an isolated environment,
    never Benchi's own session:
@@ -49,10 +41,10 @@ You implement one bead, in its own worktree on branch `yard/<bead>`.
    on (`git rev-parse --short HEAD`, the branch's last commit) and the
    result, with the counts the gate printed (tests or packages passed and
    failed):
-   `gate: yardr rig check <rig> --light --dir <worktree> @ <commit>: pass, <n> ok, 0 failed`
-   The reviewer goes by that line instead of running the gate again, so it
-   must be true of the commit you hand on: commit after it, and you run the
-   gate again.
+   `test: .yardr/check @ <commit>: pass, <n> ok, 0 failed`
+   The reviewer runs the gate itself and does not take this line on trust, but
+   the line must still be true of the commit you hand on: commit after it, and
+   you run the gate again.
 
 If you are stuck and the stage offers no outcome for it:
 `yardr bead note <id> "..."`, then `yardr bead hold <id>`; a hold reaches the
@@ -80,7 +72,7 @@ mayor's inbox.
 If you work in a directory rig (the brief says which kind of rig it is): no
 branches, no commits. You work in the rig's directory itself, where other
 beads may be at work too, so touch only the files and folders your bead names.
-The gate is the rig's `.yardr/check` if it has one (`yardr rig check <rig>`
-passes with "no gate" otherwise), the full one and not the light: nothing
-lands from a directory rig, so no later stage runs it for you. The gate line
-has no commit. Steps 3 and 5 apply only as far as that.
+The gate is the depot's `.yardr/check` if it has one, run as `sh .yardr/check`;
+without one there is no gate. Nothing lands from a directory rig, so no later
+stage runs it for you. The gate line has no commit. Steps 3 and 5 apply only as
+far as that.
