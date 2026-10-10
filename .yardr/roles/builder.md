@@ -63,6 +63,14 @@ Docker:
 - A build that replaces an image removes the old one once the new one runs.
 - No image builds while the disk has under 20G free (`df -h /System/Volumes/Data`).
   Never start a second Docker VM or install another Docker.
+- Ports: a test or per-bead stack never publishes a fixed host port. Bind
+  127.0.0.1 with a port the kernel picks (`ports: ['127.0.0.1::5432']`), read
+  it back (`docker compose -p <bead-id> port <service> 5432`), and call it
+  ready only when a real connection reaches your own database (not
+  `pg_isready` on a socket). A stack that finds its port taken fails loudly;
+  it never uses whatever answers there. Fixed host ports are only for
+  long-running services listed in /Users/bsaladin/ws_yardr/integrations/PORTS.md,
+  which IT keeps: ask IT before taking one.
 
 ## Something outside your bead
 
