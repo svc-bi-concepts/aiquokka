@@ -50,6 +50,20 @@ If you are stuck and the stage offers no outcome for it:
 `yardr bead note <id> "..."`, then `yardr bead hold <id>`; a hold reaches the
 mayor's inbox.
 
+## Docker on this machine
+
+The Mac mini's disk is shared and has run full. Leave nothing of your bead in
+Docker:
+
+- A stack your bead starts is named after the bead:
+  `docker compose -p <bead-id> ...`. Before you report done or hand over, the
+  session that started it removes it:
+  `docker compose -p <bead-id> down -v --rmi local`. A test script that
+  starts a container removes it when it ends (a trap), pass or fail.
+- A build that replaces an image removes the old one once the new one runs.
+- No image builds while the disk has under 20G free (`df -h /System/Volumes/Data`).
+  Never start a second Docker VM or install another Docker.
+
 ## Something outside your bead
 
 1. It does not block you (a bug elsewhere, a stale doc, a flaky test): file
