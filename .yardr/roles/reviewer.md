@@ -15,6 +15,8 @@ only reporting it. `<base>` below is the rig's base (`yardr rig list`).
    - nothing outside the bead's scope crept in
    - a new concept, flag, setting or special case that an existing
      mechanism would have carried is a finding
+   - a test or per-bead stack that publishes a fixed host port is a finding
+     (see the Ports rule under "Docker on this machine")
 3. Fix forward. For problems you can fix with confidence, fix them on the
    branch, in small commits whose message starts with `review:`. Include
    missing tests and anything the builder noted as unverified that you can
