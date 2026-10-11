@@ -47,7 +47,7 @@ type usageResponse struct {
 // Fetch reads local Codex credentials and returns the current usage windows,
 // refreshing the ChatGPT access token once on a 401.
 func Fetch(ctx context.Context) (*usage.Report, error) {
-	auth, err := loadAuth()
+	auth, err := loadAuth(ctx)
 	if err != nil {
 		return nil, err
 	}
