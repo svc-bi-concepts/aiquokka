@@ -124,7 +124,7 @@ machine and queries the same usage endpoint that CLI uses.
 | Command | Credentials | Endpoint |
 | --- | --- | --- |
 | `claude` | `~/.claude/.credentials.json`, or macOS Keychain (OAuth) | `api.anthropic.com/api/oauth/usage` |
-| `codex`  | `~/.codex/auth.json` (ChatGPT OAuth), or macOS Keychain item `Codex Auth` when codex-cli stores its login in the keyring | `chatgpt.com/backend-api/wham/usage` |
+| `codex`  | `~/.codex/auth.json` (ChatGPT OAuth) | `chatgpt.com/backend-api/wham/usage` |
 | `kimi`   | `~/.kimi-code` / `~/.kimi` OAuth, or `$KIMI_API_KEY` | `api.kimi.com/coding/v1/usages` |
 | `grok`   | `~/.grok/auth.json` (xAI OIDC) | `cli-chat-proxy.grok.com/v1/billing?format=credits` |
 | `copilot`| `~/.config/github-copilot/{apps,hosts}.json` | `api.github.com/copilot_internal/user` |

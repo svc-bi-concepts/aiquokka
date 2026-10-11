@@ -3,6 +3,7 @@ package codex
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,8 +15,9 @@ import (
 )
 
 // usageEndpoint is the ChatGPT backend on-demand usage endpoint (the same data
-// Codex shows as "5h limit" / "weekly limit").
-const usageEndpoint = "https://chatgpt.com/backend-api/wham/usage"
+// Codex shows as "5h limit" / "weekly limit"). A variable so tests can point it
+// at a local server.
+var usageEndpoint = "https://chatgpt.com/backend-api/wham/usage"
 
 // window mirrors rate_limit.{primary,secondary}_window from /wham/usage.
 type window struct {
@@ -47,12 +49,7 @@ type usageResponse struct {
 // Fetch reads local Codex credentials and returns the current usage windows,
 // refreshing the ChatGPT access token once on a 401.
 func Fetch(ctx context.Context) (*usage.Report, error) {
-	auth, err := loadAuth(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := getUsage(ctx, auth)
+	resp, err := fetchUsage(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +66,26 @@ func Fetch(ctx context.Context) (*usage.Report, error) {
 	}
 	report.Extra = extras(resp)
 	return report, nil
+}
+
+// fetchUsage reads the usage from auth.json. Without one, the login is in codex
+// (hardened, see appserver.go), so codex is asked; if it cannot answer either,
+// the login is missing.
+func fetchUsage(ctx context.Context) (*usageResponse, error) {
+	auth, err := loadAuth()
+	if errors.Is(err, errNoAuthFile) {
+		resp, aerr := appServerUsage(ctx)
+		if aerr != nil {
+			// authPath cannot fail here: loadAuth just resolved the same path.
+			path, _ := authPath()
+			return nil, usage.NotConfigured("no Codex credentials at %s — run `codex login` first", path)
+		}
+		return resp, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return getUsage(ctx, auth)
 }
 
 // getUsage performs the authed GET, refreshing and retrying once on 401.

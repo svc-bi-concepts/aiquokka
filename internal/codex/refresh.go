@@ -78,22 +78,8 @@ func refresh(ctx context.Context, auth *authFile) error {
 	return nil
 }
 
-// persist writes updated token fields back to the store the login came from:
-// the Keychain item for a keyring login, otherwise auth.json.
+// persist writes updated token fields back to auth.json, preserving unknown keys.
 func persist(auth *authFile) error {
-	if auth.source.keychainAccount != "" {
-		out, err := mergeAuth(auth.source.raw, auth)
-		if err != nil {
-			return err
-		}
-		// codex-cli stores one line of JSON; `security -w` prints multi-line
-		// secrets hex-encoded, which neither it nor we would read back.
-		var compact bytes.Buffer
-		if err := json.Compact(&compact, out); err != nil {
-			return err
-		}
-		return writeKeychain(context.Background(), auth.source.keychainAccount, compact.Bytes())
-	}
 	path, err := authPath()
 	if err != nil {
 		return err
@@ -102,27 +88,21 @@ func persist(auth *authFile) error {
 	if err != nil {
 		return err
 	}
-	out, err := mergeAuth(data, auth)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, out, 0o600)
-}
-
-// mergeAuth returns data (an auth.json document) with the updated token fields
-// set, preserving unknown keys.
-func mergeAuth(data []byte, auth *authFile) ([]byte, error) {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, err
+		return err
 	}
 	tokBytes, err := json.Marshal(auth.Tokens)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	raw["tokens"] = tokBytes
 	if lr, err := json.Marshal(auth.LastRefresh); err == nil {
 		raw["last_refresh"] = lr
 	}
-	return json.MarshalIndent(raw, "", "  ")
+	out, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, out, 0o600)
 }
