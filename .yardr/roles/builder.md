@@ -30,6 +30,9 @@ You implement one bead, in its own worktree on branch `yard/<bead>`.
      127.0.0.1 stands in front of Benchi's own on all addresses.
    - Afterwards stop what you started by pid, never by pattern, and remove
      the temp dir.
+   - Close what you opened before you hand on: browsers, dev servers,
+     containers and compose stacks. One left running holds memory on a
+     shared machine for hours after the bead is closed.
 5. Commit on your branch. Do not merge. Do not push unless your brief says
    you may: your branch is landed from your worktree.
 6. Leave a note on the bead and finish as the stage asks; the flow picks the
