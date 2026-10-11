@@ -139,3 +139,23 @@ func TestFetchAuthFileFirst(t *testing.T) {
 		t.Errorf("report = %+v, want pro with a 5h window", report)
 	}
 }
+
+// TestFetchSilentAppServerIsKilled checks that a codex that reads its requests
+// and never answers is killed at the timeout, so Fetch returns instead of
+// hanging on launchd. The stand-in blocks on stdin, which only the kill ends.
+func TestFetchSilentAppServerIsKilled(t *testing.T) {
+	t.Setenv("CODEX_HOME", t.TempDir())
+	standIn(t, "#!/bin/sh\nwhile :; do read -r line || :; done\n")
+	old := appServerTimeout
+	appServerTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { appServerTimeout = old })
+
+	start := time.Now()
+	_, err := Fetch(context.Background())
+	if !usage.IsNotConfigured(err) {
+		t.Fatalf("Fetch error = %v, want not configured", err)
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Errorf("Fetch took %v, want it cut off near the timeout", d)
+	}
+}

@@ -11,8 +11,8 @@ import (
 )
 
 // appServerTimeout bounds one round trip to `codex app-server`, the whole
-// session including the process exit.
-const appServerTimeout = 30 * time.Second
+// session including the process exit. A variable so a test can shorten it.
+var appServerTimeout = 30 * time.Second
 
 // rateLimitsID is the request id of account/rateLimits/read; initialize is 1.
 const rateLimitsID = 2
