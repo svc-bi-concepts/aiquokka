@@ -86,7 +86,13 @@ func persist(auth *authFile) error {
 		if err != nil {
 			return err
 		}
-		return writeKeychain(context.Background(), auth.source.keychainAccount, out)
+		// codex-cli stores one line of JSON; `security -w` prints multi-line
+		// secrets hex-encoded, which neither it nor we would read back.
+		var compact bytes.Buffer
+		if err := json.Compact(&compact, out); err != nil {
+			return err
+		}
+		return writeKeychain(context.Background(), auth.source.keychainAccount, compact.Bytes())
 	}
 	path, err := authPath()
 	if err != nil {

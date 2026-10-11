@@ -183,6 +183,9 @@ func TestPersistWritesRefreshToKeychain(t *testing.T) {
 	if !ok {
 		t.Fatalf("refresh not written to the Keychain item %s", account)
 	}
+	if strings.Contains(string(written), "\n") {
+		t.Fatalf("Keychain write is multi-line, which `security -w` reads back hex-encoded: %q", written)
+	}
 	var got map[string]json.RawMessage
 	if err := json.Unmarshal(written, &got); err != nil {
 		t.Fatal(err)
