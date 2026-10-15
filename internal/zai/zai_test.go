@@ -9,30 +9,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/McKean/aiquokka/internal/usage"
 )
-
-func TestPiKeyFromPiConfig(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "models.json")
-	os.WriteFile(path, []byte(`{"providers":{"zai":{"apiKey":"abc.def"}}}`), 0o600)
-
-	if got := piKey(path); got != "abc.def" {
-		t.Fatalf("piKey = %q, want abc.def", got)
-	}
-}
-
-func TestPiKeyMissing(t *testing.T) {
-	if got := piKey(filepath.Join(t.TempDir(), "models.json")); got != "" {
-		t.Fatalf("piKey = %q, want empty", got)
-	}
-}
 
 func TestMintJWTShape(t *testing.T) {
 	token, err := mintJWT("myid.mysecret")
@@ -197,78 +179,21 @@ func TestAppendCashNil(t *testing.T) {
 	}
 }
 
-func TestAuthKeyFromPiAuthJson(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "auth.json")
-	os.WriteFile(path, []byte(`{"zai":{"type":"api_key","key":"abc.def"},"openrouter":{"type":"api_key","key":"other"}}`), 0o600)
-
-	if got := authKey(path); got != "abc.def" {
-		t.Fatalf("authKey = %q, want abc.def", got)
+// TestLoadKey pins the credential source after Benchi's D1 (2026-10-15):
+// the key comes from $ZAI_API_KEY only — on the Mac mini injected by the
+// blessed Automic Vault wrapper (docs/zai-automic-vault.md). pi's auth store
+// is deliberately not consulted, so there is nothing to point at a temp HOME.
+func TestLoadKey(t *testing.T) {
+	t.Setenv("ZAI_API_KEY", "env.id")
+	key, err := loadKey()
+	if err != nil || key != "env.id" {
+		t.Fatalf("loadKey = %q, %v; want env.id", key, err)
 	}
-}
 
-func TestAuthKeyMissingOrNonApiKey(t *testing.T) {
-	dir := t.TempDir()
-	if got := authKey(filepath.Join(dir, "auth.json")); got != "" {
-		t.Fatalf("authKey on missing file = %q, want empty", got)
+	t.Setenv("ZAI_API_KEY", "")
+	if _, err := loadKey(); !usage.IsNotConfigured(err) {
+		t.Fatalf("loadKey error = %v, want NotConfigured", err)
 	}
-	path := filepath.Join(dir, "auth.json")
-	os.WriteFile(path, []byte(`{"zai":{"type":"oauth","key":"abc.def"}}`), 0o600)
-	if got := authKey(path); got != "" {
-		t.Fatalf("authKey on oauth entry = %q, want empty", got)
-	}
-}
-
-// TestLoadKeyOrder pins the credential precedence: env var, then
-// ~/.pi/agent/auth.json, then ~/.pi/agent/models.json — all against a temp
-// HOME so the real configuration is never touched.
-func TestLoadKeyOrder(t *testing.T) {
-	home := t.TempDir()
-	piAgent := filepath.Join(home, ".pi", "agent")
-	if err := os.MkdirAll(piAgent, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	os.WriteFile(filepath.Join(piAgent, "auth.json"), []byte(`{"zai":{"type":"api_key","key":"auth.id"}}`), 0o600)
-	os.WriteFile(filepath.Join(piAgent, "models.json"), []byte(`{"providers":{"zai":{"apiKey":"models.id"}}}`), 0o600)
-
-	restore := userHomeDir
-	userHomeDir = func() (string, error) { return home, nil }
-	t.Cleanup(func() { userHomeDir = restore })
-
-	t.Run("env wins", func(t *testing.T) {
-		t.Setenv("ZAI_API_KEY", "env.id")
-		key, err := loadKey()
-		if err != nil || key != "env.id" {
-			t.Fatalf("loadKey = %q, %v; want env.id", key, err)
-		}
-	})
-	t.Run("auth.json before models.json", func(t *testing.T) {
-		t.Setenv("ZAI_API_KEY", "")
-		key, err := loadKey()
-		if err != nil || key != "auth.id" {
-			t.Fatalf("loadKey = %q, %v; want auth.id", key, err)
-		}
-	})
-	t.Run("models.json fallback", func(t *testing.T) {
-		t.Setenv("ZAI_API_KEY", "")
-		if err := os.Remove(filepath.Join(piAgent, "auth.json")); err != nil {
-			t.Fatal(err)
-		}
-		key, err := loadKey()
-		if err != nil || key != "models.id" {
-			t.Fatalf("loadKey = %q, %v; want models.id", key, err)
-		}
-	})
-	t.Run("nothing configured", func(t *testing.T) {
-		t.Setenv("ZAI_API_KEY", "")
-		if err := os.Remove(filepath.Join(piAgent, "models.json")); err != nil {
-			t.Fatal(err)
-		}
-		_, err := loadKey()
-		if !usage.IsNotConfigured(err) {
-			t.Fatalf("loadKey error = %v, want NotConfigured", err)
-		}
-	})
 }
 
 func TestQuotaWindowFiveHour(t *testing.T) {
