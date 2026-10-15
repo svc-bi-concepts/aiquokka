@@ -13,7 +13,11 @@ You implement one bead, in its own worktree on branch `yard/<bead>`.
    and again at landing. It is read from the base, so editing it on your
    branch does not change what you must pass; if you do edit it, run your copy
    by hand. Beyond it, run the tests of what you changed, as you judge.
-   Every bug you find or fix gets a regression test.
+   Every change brings tests for what it changes: new behaviour gets tests,
+   and every bug you find or fix gets a regression test. A red test, yours
+   or an older one, is fixed, never skipped, weakened or deleted to get
+   through; if it is not yours to fix, the bead stops there (Benchi's
+   rule, 2026-10-15).
 4. Test anything that starts agents or servers in an isolated environment,
    never Benchi's own session:
    - Run it under `env -i` with only what it needs: its own home, config and

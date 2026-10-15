@@ -10,7 +10,10 @@ only reporting it. `<base>` below is the rig's base (`yardr rig list`).
    Check it against the bead, not against your own idea of the feature:
    - correctness: edge cases, error paths, concurrency, resource leaks
    - every "done when" item is actually met and tested
-   - tests test behaviour, and every fixed bug has a regression test
+   - the change brings tests for what it changes: new behaviour is tested,
+     every fixed bug has a regression test, and tests test behaviour
+   - no existing test was skipped, weakened or deleted to make the gate
+     pass (Benchi's rule, 2026-10-15): that alone is a rejection
    - style matches the surrounding code; comments explain why
    - nothing outside the bead's scope crept in
    - a new concept, flag, setting or special case that an existing
