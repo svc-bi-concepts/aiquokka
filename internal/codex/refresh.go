@@ -72,14 +72,32 @@ func refresh(ctx context.Context, auth *authFile) error {
 	}
 	auth.LastRefresh = time.Now().UTC().Format(time.RFC3339)
 
-	if err := persist(auth); err != nil {
+	if err := persist(ctx, auth); err != nil {
 		fmt.Fprintf(os.Stderr, "aiquokka: warning: could not persist refreshed Codex token: %v\n", err)
 	}
 	return nil
 }
 
-// persist writes updated token fields back to auth.json, preserving unknown keys.
-func persist(auth *authFile) error {
+// persist writes updated token fields back to where the login was read from:
+// the Keychain item it came from, or auth.json, preserving unknown keys.
+func persist(ctx context.Context, auth *authFile) error {
+	if len(auth.source.keychainItem) != 0 {
+		data, err := readKeychainItem(ctx, auth.source.keychainItem)
+		if err != nil {
+			return err
+		}
+		raw, err := mergeAuth(data, auth)
+		if err != nil {
+			return err
+		}
+		// codex-cli stores the payload compact (serde_json::to_string).
+		out, err := json.Marshal(raw)
+		if err != nil {
+			return err
+		}
+		return updateKeychainItem(ctx, auth.source.keychainItem, out)
+	}
+
 	path, err := authPath()
 	if err != nil {
 		return err
@@ -88,21 +106,32 @@ func persist(auth *authFile) error {
 	if err != nil {
 		return err
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	tokBytes, err := json.Marshal(auth.Tokens)
+	raw, err := mergeAuth(data, auth)
 	if err != nil {
 		return err
-	}
-	raw["tokens"] = tokBytes
-	if lr, err := json.Marshal(auth.LastRefresh); err == nil {
-		raw["last_refresh"] = lr
 	}
 	out, err := json.MarshalIndent(raw, "", "  ")
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(path, out, 0o600)
+}
+
+// mergeAuth replaces tokens and last_refresh in a stored auth payload,
+// preserving unknown keys. Callers encode the result: compact for the
+// Keychain item, indented for auth.json.
+func mergeAuth(data []byte, auth *authFile) (map[string]json.RawMessage, error) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, err
+	}
+	tokBytes, err := json.Marshal(auth.Tokens)
+	if err != nil {
+		return nil, err
+	}
+	raw["tokens"] = tokBytes
+	if lr, err := json.Marshal(auth.LastRefresh); err == nil {
+		raw["last_refresh"] = lr
+	}
+	return raw, nil
 }

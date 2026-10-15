@@ -2,6 +2,7 @@ package codex
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -27,6 +28,35 @@ func standIn(t *testing.T, script string) {
 	t.Setenv("PATH", dir)
 }
 
+// stubKeychainSeams replaces the Keychain seams so no test reads the real
+// Keychain. data nil means the item does not exist.
+func stubKeychainSeams(t *testing.T, data []byte) {
+	t.Helper()
+	if data != nil {
+		readKeychainAuth = func(context.Context) ([]byte, []byte, error) {
+			return data, []byte("cli|test"), nil
+		}
+		readKeychainItem = func(context.Context, []byte) ([]byte, error) {
+			return data, nil
+		}
+	} else {
+		readKeychainAuth = func(context.Context) ([]byte, []byte, error) {
+			return nil, nil, errKeychainCredentialsNotFound
+		}
+		readKeychainItem = func(context.Context, []byte) ([]byte, error) {
+			return nil, errKeychainCredentialsNotFound
+		}
+	}
+	updateKeychainItem = func(context.Context, []byte, []byte) error {
+		return errors.New("unexpected keychain write")
+	}
+	t.Cleanup(func() {
+		readKeychainAuth = loadKeychainAuth
+		readKeychainItem = loadKeychainItem
+		updateKeychainItem = persistKeychainAuth
+	})
+}
+
 // appServerScript answers like `codex app-server`: it checks that the three
 // requests arrive in order, then writes a notification before the responses.
 // It exits non-zero when a request is not the one aiquokka sends. It uses only
@@ -47,6 +77,7 @@ printf '%s\n' \
 
 func TestFetchFromAppServerWithoutAuthFile(t *testing.T) {
 	t.Setenv("CODEX_HOME", t.TempDir())
+	stubKeychainSeams(t, nil) // no Keychain item: codex is asked instead
 	standIn(t, appServerScript)
 
 	report, err := Fetch(context.Background())
@@ -86,6 +117,7 @@ func TestFetchFromAppServerWithoutAuthFile(t *testing.T) {
 
 func TestFetchNoLoginAndNoCodex(t *testing.T) {
 	t.Setenv("CODEX_HOME", t.TempDir())
+	stubKeychainSeams(t, nil)
 	standIn(t, "")
 
 	_, err := Fetch(context.Background())
@@ -99,6 +131,7 @@ func TestFetchNoLoginAndNoCodex(t *testing.T) {
 
 func TestFetchAppServerFailureIsNotConfigured(t *testing.T) {
 	t.Setenv("CODEX_HOME", t.TempDir())
+	stubKeychainSeams(t, nil)
 	standIn(t, "#!/bin/sh\nexit 1\n")
 
 	_, err := Fetch(context.Background())
@@ -140,11 +173,70 @@ func TestFetchAuthFileFirst(t *testing.T) {
 	}
 }
 
+// TestFetchNoCredentialsNamesBothPlaces checks that with neither an auth.json
+// nor a Keychain item the not-configured error names both places a login can
+// live.
+func TestFetchNoCredentialsNamesBothPlaces(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("CODEX_HOME", home)
+	stubKeychainSeams(t, nil)
+	standIn(t, "")
+
+	_, err := Fetch(context.Background())
+	if !usage.IsNotConfigured(err) {
+		t.Fatalf("Fetch error = %v, want not configured", err)
+	}
+	wantPath := filepath.Join(home, "auth.json")
+	if !strings.Contains(err.Error(), wantPath) {
+		t.Errorf("message = %q, want it to name %s", err, wantPath)
+	}
+	if !strings.Contains(err.Error(), `"Codex Auth"`) {
+		t.Errorf("message = %q, want it to name the Codex Auth Keychain item", err)
+	}
+}
+
+// TestFetchFromKeychainWithoutAuthFile checks that a Codex Keychain item is
+// read like an auth.json, and that codex is not asked: the stand-in fails if
+// it is called.
+func TestFetchFromKeychainWithoutAuthFile(t *testing.T) {
+	var gotAuth, gotAccount string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		gotAccount = r.Header.Get("ChatGPT-Account-Id")
+		w.Write([]byte(`{"plan_type":"pro","rate_limit":{"primary_window":{"used_percent":9,"limit_window_seconds":604800}}}`))
+	}))
+	defer srv.Close()
+	old := usageEndpoint
+	usageEndpoint = srv.URL
+	t.Cleanup(func() { usageEndpoint = old })
+
+	t.Setenv("CODEX_HOME", t.TempDir())
+	item := []byte(`{"tokens":{"access_token":"kc-tok","account_id":"kc-acc","refresh_token":"kc-r"},"auth_mode":"chatgpt"}`)
+	readKeychainAuthSaved := readKeychainAuth
+	readKeychainAuth = func(context.Context) ([]byte, []byte, error) {
+		return item, []byte("cli|abcd"), nil
+	}
+	t.Cleanup(func() { readKeychainAuth = readKeychainAuthSaved })
+	standIn(t, "#!/bin/sh\nexit 1\n")
+
+	report, err := Fetch(context.Background())
+	if err != nil {
+		t.Fatalf("Fetch: %v", err)
+	}
+	if gotAuth != "Bearer kc-tok" || gotAccount != "kc-acc" {
+		t.Errorf("request headers = %q / %q, want the Keychain token and account", gotAuth, gotAccount)
+	}
+	if report.Plan != "pro" || len(report.Windows) != 1 || report.Windows[0].Label != "Weekly" {
+		t.Errorf("report = %+v, want pro with a Weekly window", report)
+	}
+}
+
 // TestFetchSilentAppServerIsKilled checks that a codex that reads its requests
 // and never answers is killed at the timeout, so Fetch returns instead of
 // hanging on launchd. The stand-in blocks on stdin, which only the kill ends.
 func TestFetchSilentAppServerIsKilled(t *testing.T) {
 	t.Setenv("CODEX_HOME", t.TempDir())
+	stubKeychainSeams(t, nil)
 	standIn(t, "#!/bin/sh\nwhile :; do read -r line || :; done\n")
 	old := appServerTimeout
 	appServerTimeout = 200 * time.Millisecond
