@@ -20,12 +20,17 @@ av list
 # asked; scope: read):
 #   av save ZAI_API_KEY
 
-## 2. Move the real binary aside and install the wrapper in its place
+## 2. Move the real binary aside and install the wrapper in its place.
+##    The backslash before $@ is load-bearing: the heredoc is unquoted so
+##    $SECRET_NAME and $HOME expand now (baking the absolute path in, so the
+##    wrapper also works when a launcher does not set HOME); without the
+##    backslash $@ would expand at paste time to nothing and the wrapper
+##    would drop its arguments.
 mv ~/.local/bin/aiquokka ~/.local/bin/aiquokka.bin
 cat > ~/.local/bin/aiquokka <<EOF
 #!/bin/sh
 # blessed wrapper (aiquokka-9tzz, D1): inject ZAI_API_KEY from Automic Vault
-exec av inject +$SECRET_NAME -- "$HOME/.local/bin/aiquokka.bin" "$@"
+exec av inject +$SECRET_NAME -- "$HOME/.local/bin/aiquokka.bin" "\$@"
 EOF
 chmod +x ~/.local/bin/aiquokka
 
