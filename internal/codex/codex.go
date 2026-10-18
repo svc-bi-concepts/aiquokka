@@ -68,18 +68,17 @@ func Fetch(ctx context.Context) (*usage.Report, error) {
 	return report, nil
 }
 
-// fetchUsage reads the usage from auth.json. Without one, the login is in the
-// Keychain on darwin (see keychain.go) or in codex (hardened, see
-// appserver.go), so codex is asked; if it cannot answer either, the login is
-// missing.
+// fetchUsage reads the usage from auth.json. Without one, the login is in
+// codex itself (hardened, see appserver.go), so codex is asked; if it cannot
+// answer either, the login is missing.
 func fetchUsage(ctx context.Context) (*usageResponse, error) {
-	auth, err := loadAuth(ctx)
+	auth, err := loadAuth()
 	if errors.Is(err, errNoAuthFile) {
 		resp, aerr := appServerUsage(ctx)
 		if aerr != nil {
 			// authPath cannot fail here: loadAuth just resolved the same path.
 			path, _ := authPath()
-			return nil, usage.NotConfigured("no Codex credentials at %s%s — run `codex login` first", path, keychainMention)
+			return nil, usage.NotConfigured("no Codex credentials at %s, and codex app-server did not answer — run `codex login`", path)
 		}
 		return resp, nil
 	}
