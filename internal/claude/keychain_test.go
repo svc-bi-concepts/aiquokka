@@ -1,7 +1,10 @@
 package claude
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os/exec"
 	"strings"
@@ -50,5 +53,46 @@ func TestClassifySecurityErrorTimeout(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "permission dialog") {
 		t.Fatalf("expected permission-dialog hint, got %v", err)
+	}
+}
+
+func TestDecodeSecurityHex(t *testing.T) {
+	plainJSON := []byte(`{"claudeAiOauth":{"accessToken":"t"}}`)
+	prettyJSON := []byte("{\n  \"claudeAiOauth\": {\n    \"accessToken\": \"t\"\n  }\n}\n")
+	hexOfPretty := []byte(hex.EncodeToString(prettyJSON))
+	hexOfText := []byte(hex.EncodeToString([]byte("hello")))
+
+	tests := []struct {
+		name string
+		in   []byte
+		want []byte
+	}{
+		{"plain JSON passes through", plainJSON, plainJSON},
+		{"hex of pretty JSON decodes", hexOfPretty, prettyJSON},
+		{"hex that does not decode to JSON stays hex", hexOfText, hexOfText},
+		{"empty stays empty", []byte{}, []byte{}},
+		{"odd length stays", []byte("7b0a1"), []byte("7b0a1")},
+		{"non-hex stays", []byte("7b0g"), []byte("7b0g")},
+		{"uppercase hex stays", []byte("7B0A"), []byte("7B0A")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := decodeSecurityHex(tt.in)
+			if !bytes.Equal(got, tt.want) {
+				t.Fatalf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDecodeSecurityHexParsesAsCredentials(t *testing.T) {
+	prettyJSON := []byte("{\n  \"claudeAiOauth\": {\n    \"accessToken\": \"tok\",\n    \"refreshToken\": \"ref\"\n  }\n}\n")
+	got := decodeSecurityHex([]byte(hex.EncodeToString(prettyJSON)))
+	var parsed credentialsFile
+	if err := json.Unmarshal(got, &parsed); err != nil {
+		t.Fatalf("decoding hex output: %v", err)
+	}
+	if parsed.ClaudeAiOauth.AccessToken != "tok" || parsed.ClaudeAiOauth.RefreshToken != "ref" {
+		t.Fatalf("got %+v, want claudeAiOauth with tok/ref", parsed.ClaudeAiOauth)
 	}
 }
