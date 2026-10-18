@@ -2,6 +2,7 @@ package claude
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -46,4 +47,35 @@ func isKeychainInteractionError(msg string) bool {
 	return strings.Contains(msg, "User interaction is not allowed") ||
 		strings.Contains(msg, "could not be found in this keychain, because it is locked") ||
 		strings.Contains(msg, "Unable to display a dialogue")
+}
+
+// decodeSecurityHex undoes the hex encoding /usr/bin/security falls back to
+// for `find-generic-password -w` output that is not plain text: when the
+// stored bytes hold newlines or other non-printable characters, security
+// prints them as lowercase hex instead. Pretty-printed JSON, which Claude
+// Code now writes, trips that path. When the input looks like such a hex
+// dump and decodes to JSON that starts with '{', the decoded bytes are
+// returned; anything else is returned unchanged. The decoded bytes are
+// secret and are never logged.
+func decodeSecurityHex(stdout []byte) []byte {
+	if len(stdout) == 0 || len(stdout)%2 != 0 {
+		return stdout
+	}
+	for _, c := range stdout {
+		if !isLowerHexDigit(c) {
+			return stdout
+		}
+	}
+	decoded := make([]byte, len(stdout)/2)
+	if _, err := hex.Decode(decoded, stdout); err != nil {
+		return stdout
+	}
+	if decoded[0] != '{' {
+		return stdout
+	}
+	return decoded
+}
+
+func isLowerHexDigit(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'f'
 }

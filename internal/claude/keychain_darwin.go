@@ -68,7 +68,7 @@ func securityFindPassword(ctx context.Context, service, account string) ([]byte,
 	if len(stdout) == 0 {
 		return nil, errKeychainCredentialsNotFound
 	}
-	return stdout, nil
+	return decodeSecurityHex(stdout), nil
 }
 
 func findPasswordArgs(service, account string, secret bool) []string {
