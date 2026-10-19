@@ -10,7 +10,7 @@ already stores (or your existing API key). No tokens to paste, no config.
 - **Only what you use** — providers you aren't logged into are skipped silently.
 - **Pace marker** — each bar shows where even, linear usage would put you right
   now, so you can tell at a glance if you're burning too fast.
-- **Auto token refresh** — expired OAuth tokens are refreshed and written back, except Claude's, which is reported as stale.
+- **Read-only credentials** — an expired OAuth token is reported as stale; aiquokka never refreshes it or writes it back.
 - **Scriptable** — `--json` / `--yaml` for machine-readable output.
 - **Live watch** — `--watch` / `-w` refreshes the view every 60 seconds.
 
@@ -133,12 +133,11 @@ machine and queries the same usage endpoint that CLI uses.
 | `agy`    | `~/.gemini/antigravity-cli/antigravity-oauth-token` | `daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota` |
 | `zai`    | `$ZAI_API_KEY` — on the Mac mini injected by the blessed `av` wrapper ([docs/zai-automic-vault.md](docs/zai-automic-vault.md)) | `api.z.ai/api/monitor/usage/quota/limit` (GLM Coding Plan windows), `api.z.ai/api/biz/tokenAccounts/list/my`, `api.z.ai/api/biz/account/query-customer-account-report` |
 
-Every provider that uses a short-lived OAuth access token (all except the
-static API-key providers Kimi and DeepSeek) **refreshes automatically** when
-the token has expired and writes the new token back to the credential file.
-Claude is the exception: its refresh token is single-use, so aiquokka reports an
-expired Claude token as stale and never refreshes or writes Claude Code's
-credentials.
+Every provider that uses a short-lived OAuth access token (including Kimi's
+CLI login, but not static API keys) **reads** that token and never
+writes to the credential file. When the token has expired, or the provider
+rejects it, aiquokka reports the provider as stale and says which command to
+run (for example `run codex`). The tool that owns the login refreshes it.
 
 ### Claude Code on macOS
 
@@ -161,9 +160,9 @@ Per-provider notes:
 - **Kimi** limits are only on the Kimi Code coding subscription; the OAuth token
   is auto-detected from the CLI, or set `KIMI_API_KEY` to an `sk-kimi-…` key.
 - **Grok** reports the weekly usage-limit window (the same figure the Grok CLI's
-  `/usage` shows), plus subscription tier and Grok Code access. xAI rotates
-  refresh tokens, so if both `grok` and `aiquokka` refresh the most recent one
-  wins; a "run grok to re-login" message means the stored token was superseded.
+  `/usage` shows), plus subscription tier and Grok Code access. Its token is
+  read-only here, so a "run grok to re-login" message means the stored token has
+  expired or was rejected.
 - **Copilot** fetches usage across Chat, Completions, and Premium Interactions based on the IDE or GitHub CLI stored credential.
 - **DeepSeek** reads `DEEPSEEK_API_KEY` (sk-…) and reports the account balance. The balance is money, not a usage limit, so the bar is full while any balance remains and empties at zero — the amount is the number that matters. The granted and topped-up portions are shown beneath it.
 - **Kiro** runs the installed CLI’s built-in `/usage` command non-interactively, so Kiro retains ownership of credentials and token refresh. It reports monthly credits, plan, reset date, and overage status.

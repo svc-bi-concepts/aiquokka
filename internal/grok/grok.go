@@ -44,21 +44,19 @@ type userResponse struct {
 // Fetch reports Grok's usage-limit window (weekly for subscription accounts)
 // plus the subscription tier.
 func Fetch(ctx context.Context) (*usage.Report, error) {
-	acc, storeKey, err := loadAccount()
+	acc, err := loadAccount()
 	if err != nil {
 		return nil, err
 	}
 	if acc.expired(time.Now()) {
-		if err := refresh(ctx, acc, storeKey); err != nil {
-			return nil, err
-		}
+		return nil, errStale
 	}
 
 	report := &usage.Report{Provider: "Grok"}
 
 	// Subscription tier + Grok Code access (best-effort; don't fail the whole
 	// report if this call errors).
-	if u, err := getUser(ctx, acc, storeKey); err == nil {
+	if u, err := getUser(ctx, acc); err == nil {
 		report.Plan = u.SubscriptionTier
 		access := "no"
 		if u.HasGrokCodeAccess {
@@ -68,7 +66,7 @@ func Fetch(ctx context.Context) (*usage.Report, error) {
 	}
 
 	// The usage-limit window.
-	bill, err := getBilling(ctx, acc, storeKey)
+	bill, err := getBilling(ctx, acc)
 	if err != nil {
 		return nil, err
 	}
@@ -125,36 +123,30 @@ func periodLabel(t string) string {
 	}
 }
 
-// getBilling calls /billing?format=credits, refreshing/retrying once on 401/403.
-func getBilling(ctx context.Context, acc *account, storeKey string) (*billingResponse, error) {
+// getBilling calls /billing?format=credits.
+func getBilling(ctx context.Context, acc *account) (*billingResponse, error) {
 	var out billingResponse
-	if err := authedGet(ctx, acc, storeKey, "/billing?format=credits", &out); err != nil {
+	if err := authedGet(ctx, acc, "/billing?format=credits", &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
 
-// getUser calls /user?include=subscription with the same retry behavior.
-func getUser(ctx context.Context, acc *account, storeKey string) (*userResponse, error) {
+// getUser calls /user?include=subscription.
+func getUser(ctx context.Context, acc *account) (*userResponse, error) {
 	var out userResponse
-	if err := authedGet(ctx, acc, storeKey, "/user?include=subscription", &out); err != nil {
+	if err := authedGet(ctx, acc, "/user?include=subscription", &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
 
-// authedGet performs a bearer GET, refreshing the token and retrying once on a
-// 401/403.
-func authedGet(ctx context.Context, acc *account, storeKey, path string, out any) error {
+// authedGet performs a bearer GET. A 401/403 is reported as stale rather than
+// refreshed: aiquokka reads usage and never writes Grok's auth.json.
+func authedGet(ctx context.Context, acc *account, path string, out any) error {
 	status, err := doGet(ctx, acc.Key, path, out)
-	if err == nil {
-		return nil
-	}
-	if (status == http.StatusUnauthorized || status == http.StatusForbidden) && acc.RefreshToken != "" {
-		if rerr := refresh(ctx, acc, storeKey); rerr != nil {
-			return rerr
-		}
-		_, err = doGet(ctx, acc.Key, path, out)
+	if err != nil && (status == http.StatusUnauthorized || status == http.StatusForbidden) {
+		return errStale
 	}
 	return err
 }

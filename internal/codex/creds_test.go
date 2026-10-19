@@ -1,12 +1,17 @@
 package codex
 
 import (
-	"encoding/json"
+	"bytes"
+	"context"
 	"errors"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
-	"time"
+
+	"github.com/McKean/aiquokka/internal/httpx"
 )
 
 // TestLoadAuthReadsAuthFile checks that loadAuth reads the login from
@@ -38,53 +43,48 @@ func TestLoadAuthMissingFileGivesErrNoAuthFile(t *testing.T) {
 	}
 }
 
-// TestPersistWritesBackToAuthFile checks that a refreshed login is written
-// back to auth.json with unknown keys kept and 0600 permissions.
-func TestPersistWritesBackToAuthFile(t *testing.T) {
+// unauthorizedTransport answers every request 401 and records each URL, so a
+// test can tell whether aiquokka asked for anything beyond the usage read.
+type unauthorizedTransport struct{ urls *[]string }
+
+func (u unauthorizedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	*u.urls = append(*u.urls, req.URL.String())
+	return &http.Response{
+		StatusCode: http.StatusUnauthorized,
+		Status:     "401 Unauthorized",
+		Body:       io.NopCloser(strings.NewReader(`{"error":"token_expired"}`)),
+		Request:    req,
+	}, nil
+}
+
+// TestRejectedTokenIsStaleAndAuthFileUntouched checks that a 401 on the usage
+// read gives the stale error after one request, with no refresh and no write
+// to auth.json.
+func TestRejectedTokenIsStaleAndAuthFileUntouched(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("CODEX_HOME", home)
-	original := []byte(`{
-  "auth_mode": "chatgpt",
-  "OPENAI_API_KEY": null,
-  "tokens": {"access_token": "old", "refresh_token": "r1"},
-  "last_refresh": "2026-10-01T00:00:00Z"
-}`)
+	raw := []byte(`{"auth_mode":"chatgpt","tokens":{"access_token":"old","refresh_token":"single-use","account_id":"acc"}}`)
 	path := filepath.Join(home, "auth.json")
-	if err := os.WriteFile(path, original, 0o600); err != nil {
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	var urls []string
+	old := httpx.Client
+	httpx.Client = &http.Client{Transport: unauthorizedTransport{&urls}}
+	t.Cleanup(func() { httpx.Client = old })
 
-	auth := &authFile{
-		Tokens:      tokens{IDToken: "id-2", AccessToken: "new", RefreshToken: "r2", AccountID: "acc"},
-		LastRefresh: time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC).Format(time.RFC3339),
+	_, err := Fetch(context.Background())
+	if !errors.Is(err, errStale) {
+		t.Fatalf("Fetch error = %v, want stale", err)
 	}
-	if err := persist(auth); err != nil {
-		t.Fatalf("persist: %v", err)
+	if len(urls) != 1 || urls[0] != usageEndpoint {
+		t.Errorf("requests = %v, want only the usage endpoint", urls)
 	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("reading back: %v", err)
+	got, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatal(readErr)
 	}
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		t.Fatalf("written file is not JSON: %v\n%s", err, data)
-	}
-	var tok tokens
-	if err := json.Unmarshal(raw["tokens"], &tok); err != nil {
-		t.Fatalf("tokens field: %v", err)
-	}
-	if tok.AccessToken != "new" || tok.RefreshToken != "r2" || tok.AccountID != "acc" {
-		t.Errorf("written tokens = %+v, want the refreshed set", tok)
-	}
-	if string(raw["auth_mode"]) != `"chatgpt"` || string(raw["OPENAI_API_KEY"]) != "null" {
-		t.Errorf("unknown keys not preserved: %s", data)
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if info.Mode().Perm() != 0o600 {
-		t.Errorf("mode = %v, want 0600", info.Mode().Perm())
+	if !bytes.Equal(got, raw) {
+		t.Errorf("auth.json changed:\n got %s\nwant %s", got, raw)
 	}
 }
