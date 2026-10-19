@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"os/user"
@@ -22,34 +21,17 @@ const securityReadTimeout = 3 * time.Second
 // that tool on the item ACL. Reading through the same helper avoids the
 // permission dialog that Security.framework shows for the aiquokka binary.
 // Calls are time-bounded so a dialog over SSH cannot hang the process.
-func loadKeychainCredentials(ctx context.Context) ([]byte, []byte, error) {
+// aiquokka only reads this item: it never writes Claude Code's credentials.
+func loadKeychainCredentials(ctx context.Context) ([]byte, error) {
 	account := keychainAccount()
 	data, err := securityFindPassword(ctx, claudeCredentialsService, account)
 	if err != nil && account != "" && !errors.Is(err, errKeychainTimeout) && !errors.Is(err, context.Canceled) {
 		data, err = securityFindPassword(ctx, claudeCredentialsService, "")
-		account = ""
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return data, []byte(account), nil
-}
-
-func persistKeychainCredentials(ctx context.Context, item, data []byte) error {
-	account := string(item)
-	if account == "" {
-		account = keychainAccount()
-	}
-	return securityAddPassword(ctx, claudeCredentialsService, account, data)
-}
-
-func loadKeychainCredential(ctx context.Context, item []byte) ([]byte, error) {
-	account := string(item)
-	data, err := securityFindPassword(ctx, claudeCredentialsService, account)
-	if err != nil && account != "" && !errors.Is(err, context.Canceled) {
-		return securityFindPassword(ctx, claudeCredentialsService, "")
-	}
-	return data, err
+	return data, nil
 }
 
 func keychainAccount() string {
@@ -80,30 +62,6 @@ func findPasswordArgs(service, account string, secret bool) []string {
 		args = append(args, "-w")
 	}
 	return args
-}
-
-func securityAddPassword(ctx context.Context, service, account string, data []byte) error {
-	if account == "" {
-		return fmt.Errorf("updating Claude Code credentials in Keychain: missing account")
-	}
-	_, stderr, err := runSecurity(ctx,
-		"add-generic-password",
-		"-U",
-		"-s", service,
-		"-a", account,
-		"-w", string(data),
-	)
-	if err != nil {
-		if errors.Is(err, errKeychainTimeout) {
-			return fmt.Errorf("updating Claude Code credentials in Keychain: %w: %s", err, keychainPromptHint)
-		}
-		msg := bytes.TrimSpace(stderr)
-		if len(msg) == 0 {
-			return fmt.Errorf("updating Claude Code credentials in Keychain: %w", err)
-		}
-		return fmt.Errorf("updating Claude Code credentials in Keychain: %s", msg)
-	}
-	return nil
 }
 
 func runSecurity(parent context.Context, args ...string) (stdout, stderr []byte, err error) {
