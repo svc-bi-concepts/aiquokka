@@ -133,8 +133,8 @@ machine and queries the same usage endpoint that CLI uses.
 | `agy`    | `~/.gemini/antigravity-cli/antigravity-oauth-token` | `daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota` |
 | `zai`    | `$ZAI_API_KEY` — on the Mac mini injected by the blessed `av` wrapper ([docs/zai-automic-vault.md](docs/zai-automic-vault.md)) | `api.z.ai/api/monitor/usage/quota/limit` (GLM Coding Plan windows), `api.z.ai/api/biz/tokenAccounts/list/my`, `api.z.ai/api/biz/account/query-customer-account-report` |
 
-Every provider that uses a short-lived OAuth access token (all except the
-static API-key providers Kimi and DeepSeek) **reads** that token and never
+Every provider that uses a short-lived OAuth access token (including Kimi's
+CLI login, but not static API keys) **reads** that token and never
 writes to the credential file. When the token has expired, or the provider
 rejects it, aiquokka reports the provider as stale and says which command to
 run (for example `run codex`). The tool that owns the login refreshes it.
