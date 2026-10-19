@@ -4,4 +4,6 @@
 # exits 0. yardr reads this file from the base branch (origin/main), so an edit
 # here counts once it has landed there.
 set -e
+# First: the branch carries commits past origin/main and nothing is left uncommitted (yd-wkjq).
+sh /Users/bsaladin/ws_yardr/integrations/bin/branch-ready.sh origin/main HEAD .
 go vet ./... && go test ./...
