@@ -77,17 +77,15 @@ type usagesResponse struct {
 	} `json:"limits"`
 }
 
-// Fetch reads the Kimi Code token (refreshing it if needed) and returns the
-// current usage windows.
+// Fetch reads the Kimi Code token and returns the current usage windows. An
+// expired OAuth token is reported as stale.
 func Fetch(ctx context.Context) (*usage.Report, error) {
 	creds, err := load()
 	if err != nil {
 		return nil, err
 	}
 	if creds.expired(time.Now()) {
-		if err := refresh(ctx, creds); err != nil {
-			return nil, err
-		}
+		return nil, errStale
 	}
 
 	resp, err := getUsages(ctx, creds)
@@ -128,21 +126,15 @@ func windowDuration(w window) time.Duration {
 	}
 }
 
-// getUsages performs the authed GET, refreshing and retrying once on a 401.
+// getUsages performs the authed GET. A 401 on an OAuth token is reported as
+// stale rather than refreshed: aiquokka never writes the kimi CLI's credentials.
 func getUsages(ctx context.Context, c *credentials) (*usagesResponse, error) {
 	resp, status, err := doUsages(ctx, c.bearer)
 	if err == nil {
 		return resp, nil
 	}
 	if status == http.StatusUnauthorized && c.refreshable {
-		if rerr := refresh(ctx, c); rerr != nil {
-			return nil, rerr
-		}
-		resp, _, err = doUsages(ctx, c.bearer)
-		if err != nil {
-			return nil, err
-		}
-		return resp, nil
+		return nil, errStale
 	}
 	return nil, err
 }

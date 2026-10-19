@@ -3,6 +3,7 @@ package grok
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,6 +39,10 @@ type account struct {
 	PrincipalType string `json:"principal_type"`
 }
 
+// errStale means the access token has expired or was rejected. aiquokka does not
+// refresh it, so the login in auth.json is left for grok to renew.
+var errStale = errors.New("Grok credentials are stale: the access token expired — run `grok` to re-login")
+
 // expired reports whether the access token is at/near expiry (60s margin).
 func (a *account) expired(now time.Time) bool {
 	if a.ExpiresAt == "" {
@@ -50,23 +55,22 @@ func (a *account) expired(now time.Time) bool {
 	return now.After(t.Add(-60 * time.Second))
 }
 
-// loadAccount reads auth.json and returns the x.ai account entry along with the
-// map key it was stored under (needed to persist a refreshed token).
-func loadAccount() (*account, string, error) {
+// loadAccount reads auth.json and returns the x.ai account entry.
+func loadAccount() (*account, error) {
 	path, err := authPath()
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, "", usage.NotConfigured("no Grok credentials at %s — run `grok` to log in", path)
+			return nil, usage.NotConfigured("no Grok credentials at %s — run `grok` to log in", path)
 		}
-		return nil, "", err
+		return nil, err
 	}
 	var accounts map[string]account
 	if err := json.Unmarshal(data, &accounts); err != nil {
-		return nil, "", fmt.Errorf("parsing %s: %w", path, err)
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 	for key, acc := range accounts {
 		if !strings.Contains(key, "x.ai") {
@@ -76,7 +80,7 @@ func loadAccount() (*account, string, error) {
 			continue
 		}
 		a := acc
-		return &a, key, nil
+		return &a, nil
 	}
-	return nil, "", usage.NotConfigured("no usable x.ai account in %s — run `grok` to log in", path)
+	return nil, usage.NotConfigured("no usable x.ai account in %s — run `grok` to log in", path)
 }

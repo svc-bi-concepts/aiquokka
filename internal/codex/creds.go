@@ -15,6 +15,10 @@ import (
 // (see appserver.go) or there is none.
 var errNoAuthFile = errors.New("no Codex auth file")
 
+// errStale means the access token was rejected. aiquokka does not refresh it,
+// so the login is left in auth.json untouched for codex to renew.
+var errStale = errors.New("Codex credentials are stale: the access token expired — run `codex`")
+
 // codexHome is $CODEX_HOME or ~/.codex.
 func codexHome() (string, error) {
 	if v := os.Getenv("CODEX_HOME"); v != "" {

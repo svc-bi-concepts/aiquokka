@@ -3,6 +3,7 @@ package kimi
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"time"
@@ -10,16 +11,17 @@ import (
 	"github.com/McKean/aiquokka/internal/usage"
 )
 
-// credentials is a resolved Kimi bearer token, optionally refreshable.
+// credentials is a resolved Kimi bearer token: a static API key, or an OAuth
+// token from the kimi CLI's credentials file.
 type credentials struct {
-	bearer string // access token or static sk-kimi-… key
-
-	// refreshable fields (only set for OAuth credential files).
-	refreshable  bool
-	file         string
-	refreshToken string
-	expiresAt    int64 // unix seconds; 0 if unknown
+	bearer      string // access token or static sk-kimi-… key
+	refreshable bool   // true for an OAuth credential file, false for a static key
+	expiresAt   int64  // unix seconds; 0 if unknown
 }
+
+// errStale means the OAuth access token has expired or was rejected. aiquokka
+// does not refresh it, so the credentials file is left for the kimi CLI.
+var errStale = errors.New("Kimi credentials are stale: the access token expired — run `kimi` to re-login")
 
 // expired reports whether the access token is at/near its expiry (60s margin).
 func (c *credentials) expired(now time.Time) bool {
@@ -94,11 +96,9 @@ func loadFromDir(dir string) *credentials {
 			continue
 		}
 		return &credentials{
-			bearer:       f.AccessToken,
-			refreshable:  f.RefreshToken != "",
-			file:         path,
-			refreshToken: f.RefreshToken,
-			expiresAt:    f.ExpiresAt,
+			bearer:      f.AccessToken,
+			refreshable: f.RefreshToken != "",
+			expiresAt:   f.ExpiresAt,
 		}
 	}
 	return nil

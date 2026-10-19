@@ -46,8 +46,8 @@ type usageResponse struct {
 	} `json:"rate_limit_reset_credits"`
 }
 
-// Fetch reads local Codex credentials and returns the current usage windows,
-// refreshing the ChatGPT access token once on a 401.
+// Fetch reads local Codex credentials and returns the current usage windows.
+// A rejected ChatGPT access token is reported as stale.
 func Fetch(ctx context.Context) (*usage.Report, error) {
 	resp, err := fetchUsage(ctx)
 	if err != nil {
@@ -88,21 +88,15 @@ func fetchUsage(ctx context.Context) (*usageResponse, error) {
 	return getUsage(ctx, auth)
 }
 
-// getUsage performs the authed GET, refreshing and retrying once on 401.
+// getUsage performs the authed GET. A 401 is reported as stale rather than
+// refreshed: aiquokka reads usage and never writes Codex's auth.json.
 func getUsage(ctx context.Context, auth *authFile) (*usageResponse, error) {
 	resp, status, err := doUsage(ctx, auth.Tokens.AccessToken, auth.Tokens.AccountID)
 	if err == nil {
 		return resp, nil
 	}
-	if status == http.StatusUnauthorized && auth.Tokens.RefreshToken != "" {
-		if rerr := refresh(ctx, auth); rerr != nil {
-			return nil, fmt.Errorf("token expired and refresh failed: %w", rerr)
-		}
-		resp, _, err = doUsage(ctx, auth.Tokens.AccessToken, auth.Tokens.AccountID)
-		if err != nil {
-			return nil, err
-		}
-		return resp, nil
+	if status == http.StatusUnauthorized {
+		return nil, errStale
 	}
 	return nil, err
 }
