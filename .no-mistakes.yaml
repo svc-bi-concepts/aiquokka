@@ -1,0 +1,17 @@
+# Per-repo no-mistakes overrides. The repo has no GitHub CI, so the Test step
+# below is the gate; no_ci tells no-mistakes not to wait for checks that never
+# report (aiquokka-tcgq: a run sat 168h at 'no CI checks reported yet').
+
+# Pin the Test step to the depot's gate, the same suite yardr runs before a
+# bead hands on and at landing.
+commands:
+  test: 'sh .yardr/check'
+
+# No GitHub CI on this repo: the Test step above is the gate.
+no_ci: true
+
+# The PR body's skeleton: the headings of the yard standard
+# (integrations/pr-standard.md), copied from its template. Read from the
+# default branch, so it takes effect once this lands.
+pr:
+  template: .github/pull_request_template.md
