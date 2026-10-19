@@ -76,28 +76,32 @@ func TestExpiredTokenIsStaleAndAuthFileUntouched(t *testing.T) {
 	}
 }
 
-// TestRejectedTokenIsStaleWithoutTokenRequest checks that a 401 on a token
-// that looks valid is stale, and that aiquokka never calls the OAuth token
-// endpoint.
+// TestRejectedTokenIsStaleWithoutTokenRequest checks that a 401 or 403 on a
+// token that looks valid is stale, and that aiquokka never calls the OAuth
+// token endpoint.
 func TestRejectedTokenIsStaleWithoutTokenRequest(t *testing.T) {
-	path, raw := writeAuth(t, `{"https://auth.x.ai::1":{"key":"old","refresh_token":"single-use","expires_at":"2099-01-01T00:00:00Z","oidc_client_id":"c"}}`)
-	var urls []string
-	useTransport(t, recordingTransport{status: http.StatusUnauthorized, urls: &urls})
+	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			path, raw := writeAuth(t, `{"https://auth.x.ai::1":{"key":"old","refresh_token":"single-use","expires_at":"2099-01-01T00:00:00Z","oidc_client_id":"c"}}`)
+			var urls []string
+			useTransport(t, recordingTransport{status: status, urls: &urls})
 
-	_, err := Fetch(context.Background())
-	if !errors.Is(err, errStale) {
-		t.Fatalf("Fetch error = %v, want stale", err)
-	}
-	for _, u := range urls {
-		if strings.Contains(u, "oauth2/token") {
-			t.Errorf("aiquokka requested the token endpoint: %s", u)
-		}
-	}
-	got, readErr := os.ReadFile(path)
-	if readErr != nil {
-		t.Fatal(readErr)
-	}
-	if !bytes.Equal(got, raw) {
-		t.Errorf("auth.json changed:\n got %s\nwant %s", got, raw)
+			_, err := Fetch(context.Background())
+			if !errors.Is(err, errStale) {
+				t.Fatalf("Fetch error = %v, want stale", err)
+			}
+			for _, u := range urls {
+				if strings.Contains(u, "oauth2/token") {
+					t.Errorf("aiquokka requested the token endpoint: %s", u)
+				}
+			}
+			got, readErr := os.ReadFile(path)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if !bytes.Equal(got, raw) {
+				t.Errorf("auth.json changed:\n got %s\nwant %s", got, raw)
+			}
+		})
 	}
 }

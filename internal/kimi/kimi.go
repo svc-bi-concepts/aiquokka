@@ -133,7 +133,7 @@ func getUsages(ctx context.Context, c *credentials) (*usagesResponse, error) {
 	if err == nil {
 		return resp, nil
 	}
-	if status == http.StatusUnauthorized && c.refreshable {
+	if status == http.StatusUnauthorized && c.oauth {
 		return nil, errStale
 	}
 	return nil, err

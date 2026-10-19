@@ -136,3 +136,19 @@ func TestRejectedOAuthTokenIsStaleWithoutTokenRequest(t *testing.T) {
 		t.Errorf("credentials file changed:\n got %s\nwant %s", got, raw)
 	}
 }
+
+// TestExpiredOAuthTokenWithoutRefreshTokenIsStale checks that an OAuth file
+// with no refresh token is still checked for expiry before any request.
+func TestExpiredOAuthTokenWithoutRefreshTokenIsStale(t *testing.T) {
+	writeOAuth(t, `{"access_token":"old","expires_at":1}`)
+	var urls []string
+	useTransport(t, statusTransport{status: http.StatusOK, urls: &urls})
+
+	_, err := Fetch(context.Background())
+	if !errors.Is(err, errStale) {
+		t.Fatalf("Fetch error = %v, want stale", err)
+	}
+	if len(urls) != 0 {
+		t.Errorf("requests = %v, want none", urls)
+	}
+}

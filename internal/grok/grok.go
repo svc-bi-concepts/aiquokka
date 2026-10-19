@@ -141,11 +141,11 @@ func getUser(ctx context.Context, acc *account) (*userResponse, error) {
 	return &out, nil
 }
 
-// authedGet performs a bearer GET. A 401 is reported as stale rather than
+// authedGet performs a bearer GET. A 401/403 is reported as stale rather than
 // refreshed: aiquokka reads usage and never writes Grok's auth.json.
 func authedGet(ctx context.Context, acc *account, path string, out any) error {
 	status, err := doGet(ctx, acc.Key, path, out)
-	if err != nil && status == http.StatusUnauthorized {
+	if err != nil && (status == http.StatusUnauthorized || status == http.StatusForbidden) {
 		return errStale
 	}
 	return err
