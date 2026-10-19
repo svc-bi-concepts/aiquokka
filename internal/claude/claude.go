@@ -32,17 +32,16 @@ type limit struct {
 	ResetsAt string   `json:"resets_at"`
 }
 
-// Fetch reads local credentials (refreshing the token if needed) and returns
-// the current Claude subscription usage.
+// Fetch reads local credentials and returns the current Claude subscription
+// usage. An expired token is reported as stale rather than refreshed: the
+// refresh token is single-use, so spending it here would log Claude Code out.
 func Fetch(ctx context.Context) (*usage.Report, error) {
 	creds, err := loadCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if creds.expired(time.Now()) {
-		if err := refresh(ctx, creds); err != nil {
-			return nil, err
-		}
+		return nil, errStale
 	}
 
 	var resp usageResponse

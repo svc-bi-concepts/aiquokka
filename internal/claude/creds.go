@@ -31,27 +31,21 @@ type oauth struct {
 	Scopes                []string `json:"scopes"`
 	SubscriptionType      string   `json:"subscriptionType"`
 	RateLimitTier         string   `json:"rateLimitTier"`
-
-	// source identifies where the credential was loaded so a refreshed token
-	// is written back to that same store. It is deliberately not serialized.
-	source credentialSource
 }
 
 type credentialsFile struct {
 	ClaudeAiOauth oauth `json:"claudeAiOauth"`
 }
 
-type credentialSource struct {
-	keychainItem []byte
-}
-
 var errKeychainCredentialsNotFound = errors.New("Claude Code Keychain credentials not found")
 
-// These private seams let the refresh path be tested without touching a real
-// Keychain. Production code always uses the platform implementations.
+// errStale means the access token has expired. aiquokka does not refresh it
+// and never writes Claude Code's credentials: running claude renews the token.
+var errStale = errors.New("Claude credentials are stale: the access token expired — run `claude`")
+
+// readKeychainCredentials is a private seam so tests never touch the real
+// Keychain. Production code always uses the platform implementation.
 var readKeychainCredentials = loadKeychainCredentials
-var readKeychainItem = loadKeychainCredential
-var updateKeychainItem = persistKeychainCredentials
 
 // expired reports whether the access token is past its expiry.
 func (o oauth) expired(now time.Time) bool {
@@ -80,12 +74,11 @@ func loadCredentials(ctx context.Context) (*oauth, error) {
 		return nil, fileErr
 	}
 
-	if data, item, err := readKeychainCredentials(ctx); err == nil {
+	if data, err := readKeychainCredentials(ctx); err == nil {
 		o, _, err := parseCredentials(data)
 		if err != nil {
 			return nil, err
 		}
-		o.source = credentialSource{keychainItem: item}
 		return o, nil
 	} else if !errors.Is(err, errKeychainCredentialsNotFound) {
 		return nil, err
@@ -97,56 +90,9 @@ func loadCredentials(ctx context.Context) (*oauth, error) {
 	return nil, usage.NotConfigured("no Claude credentials at %s — run `claude` to log in", path)
 }
 
-// mergeCredentials preserves fields owned by Claude Code while applying the
-// OAuth values that Aiquokka refreshed.
-func mergeCredentials(data []byte, direct bool, o *oauth) ([]byte, error) {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, err
-	}
-
-	var target map[string]json.RawMessage
-	if direct {
-		target = raw
-	} else {
-		encoded, ok := raw["claudeAiOauth"]
-		if !ok {
-			return nil, fmt.Errorf("no claudeAiOauth credential")
-		}
-		if err := json.Unmarshal(encoded, &target); err != nil {
-			return nil, err
-		}
-	}
-	set := func(key string, value any) error {
-		encoded, err := json.Marshal(value)
-		if err != nil {
-			return err
-		}
-		target[key] = encoded
-		return nil
-	}
-	if err := set("accessToken", o.AccessToken); err != nil {
-		return nil, err
-	}
-	if err := set("refreshToken", o.RefreshToken); err != nil {
-		return nil, err
-	}
-	if err := set("expiresAt", o.ExpiresAt); err != nil {
-		return nil, err
-	}
-	if !direct {
-		encoded, err := json.Marshal(target)
-		if err != nil {
-			return nil, err
-		}
-		raw["claudeAiOauth"] = encoded
-	}
-	return json.MarshalIndent(raw, "", "  ")
-}
-
 // parseCredentials accepts both the historical file envelope and a bare OAuth
-// object, which lets the Keychain backend preserve whichever representation
-// the installed Claude Code version uses.
+// object, which lets the Keychain backend read whichever representation the
+// installed Claude Code version uses.
 func parseCredentials(data []byte) (*oauth, bool, error) {
 	var cf credentialsFile
 	if err := json.Unmarshal(data, &cf); err == nil && cf.ClaudeAiOauth.AccessToken != "" {

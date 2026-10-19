@@ -10,7 +10,7 @@ already stores (or your existing API key). No tokens to paste, no config.
 - **Only what you use** — providers you aren't logged into are skipped silently.
 - **Pace marker** — each bar shows where even, linear usage would put you right
   now, so you can tell at a glance if you're burning too fast.
-- **Auto token refresh** — expired OAuth tokens are refreshed and written back.
+- **Auto token refresh** — expired OAuth tokens are refreshed and written back, except Claude's, which is reported as stale.
 - **Scriptable** — `--json` / `--yaml` for machine-readable output.
 - **Live watch** — `--watch` / `-w` refreshes the view every 60 seconds.
 
@@ -136,6 +136,9 @@ machine and queries the same usage endpoint that CLI uses.
 Every provider that uses a short-lived OAuth access token (all except the
 static API-key providers Kimi and DeepSeek) **refreshes automatically** when
 the token has expired and writes the new token back to the credential file.
+Claude is the exception: its refresh token is single-use, so aiquokka reports an
+expired Claude token as stale and never refreshes or writes Claude Code's
+credentials.
 
 ### Claude Code on macOS
 
@@ -146,10 +149,10 @@ item through the macOS `security` tool (the same helper Claude Code uses to
 write it), which avoids a Keychain permission dialog for the aiquokka binary.
 Over SSH, unlock the login Keychain first with `security unlock-keychain`.
 If a permission dialog still cannot be confirmed remotely, aiquokka times
-out the Keychain read instead of hanging. When a refresh is required, it
-updates that same item while preserving fields it does not own. If several
-matching items exist, it prefers the current user's. This storage format is
-an implementation detail of Claude Code and may change without notice.
+out the Keychain read instead of hanging. aiquokka only reads this item. When
+the token has expired it reports `stale, run claude` and does not refresh it.
+If several matching items exist, it prefers the current user's. This storage
+format is an implementation detail of Claude Code and may change without notice.
 
 Per-provider notes:
 
