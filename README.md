@@ -100,7 +100,7 @@ Build and test from a checkout:
 
 ```sh
 go build -o aiquokka .
-go vet ./... && go test ./...   # the same as the merge gate, .yardr/check
+go vet ./... && go test ./...   # the tests the merge gate, .yardr/check, runs
 ```
 
 ## The pace marker
