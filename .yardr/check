@@ -1,4 +1,6 @@
 #!/bin/sh
+gate_slot=$HOME/ws_yardr/integrations/gate-slot.sh
+if [ -z "${YARD_GATE_SLOT_HELD:-}" ] && [ -f "$gate_slot" ]; then exec sh "$gate_slot" -- sh "$0" "$@"; fi
 # The depot's test command, the merge gate of rig aiquokka: yardr runs it in a
 # bead's worktree before hand-on and at landing, and a bead lands only when it
 # exits 0. yardr reads this file from the base branch (origin/main), so an edit
