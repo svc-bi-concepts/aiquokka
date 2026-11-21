@@ -1,4 +1,4 @@
-Read /Users/bsaladin/ws_yardr/.yardr/roles/reviewer.md first.
+Read $YARDR_HOME/roles/reviewer.md first (the installed master; YARDR_HOME is set in your environment).
 
 ## aiquokka depot
 
@@ -7,7 +7,7 @@ Read /Users/bsaladin/ws_yardr/.yardr/roles/reviewer.md first.
 - This gate runs `go vet ./... && go test ./...` and checks branch readiness
   on bead runs.
 - Completed reviews move through `yardr bead done <id>` to the next stage.
-- Approved work lands through the `yard/landers` group, which runs
-  `/Users/bsaladin/ws_yardr/integrations/infra-land.sh`.
+- Approved work lands through the `yard/landers` group, which runs the yard's
+  `integrations/infra-land.sh`.
 - Check that provider credentials remain read-only and that no change refreshes
   or writes credential files; see README.md for provider-specific sources.

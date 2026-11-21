@@ -1,4 +1,4 @@
-Read /Users/bsaladin/ws_yardr/.yardr/roles/builder.md first.
+Read $YARDR_HOME/roles/builder.md first (the installed master; YARDR_HOME is set in your environment).
 
 ## aiquokka depot
 
@@ -8,7 +8,7 @@ Read /Users/bsaladin/ws_yardr/.yardr/roles/builder.md first.
   on bead runs.
 - The flow is `it-ship`; hand completed work to review with
   `yardr bead done <id>`.
-- Approved work lands through the `yard/landers` group, which runs
-  `/Users/bsaladin/ws_yardr/integrations/infra-land.sh`.
+- Approved work lands through the `yard/landers` group, which runs the yard's
+  `integrations/infra-land.sh`.
 - Treat provider credentials as read-only. Never refresh or write credential
   files; see README.md for provider-specific credential sources.
