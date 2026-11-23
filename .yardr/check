@@ -9,8 +9,8 @@ set -e
 # On bead runs, first check that the branch carries commits past its base and
 # nothing is left uncommitted (yd-wkjq). Quiet runs on the base have no bead.
 # The script path comes from YARDR_BRANCH_READY and has no default: the script
-# lives on the mini only, so a bead run where it is unset or missing (Linux at
-# Hetzner) skips this step, loudly, and still runs the Go checks below.
+# lives on the mini only, so a bead run where it is unset or missing (for example
+# Linux) skips this step, loudly, and still runs the Go checks below.
 if [ -n "${YARDR_BEAD:-}" ]; then
   if [ -n "${YARDR_BRANCH_READY:-}" ] && [ -x "$YARDR_BRANCH_READY" ]; then
     sh "$YARDR_BRANCH_READY" "${YARDR_BASE:-origin/main}" HEAD .
