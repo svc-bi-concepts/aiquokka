@@ -8,14 +8,14 @@ if [ -z "${YARD_GATE_SLOT_HELD:-}" ] && [ -f "$gate_slot" ]; then exec sh "$gate
 set -e
 # On bead runs, first check that the branch carries commits past its base and
 # nothing is left uncommitted (yd-wkjq). Quiet runs on the base have no bead.
-# The script lives on the mini only; a bead run on another machine (Linux at
-# Hetzner) skips this step and still runs the Go checks below.
+# The script path comes from YARDR_BRANCH_READY and has no default: the script
+# lives on the mini only, so a bead run where it is unset or missing (Linux at
+# Hetzner) skips this step, loudly, and still runs the Go checks below.
 if [ -n "${YARDR_BEAD:-}" ]; then
-  branch_ready=${YARDR_BRANCH_READY:-/Users/bsaladin/ws_yardr/integrations/bin/branch-ready.sh}
-  if [ -x "$branch_ready" ]; then
-    sh "$branch_ready" "${YARDR_BASE:-origin/main}" HEAD .
+  if [ -n "${YARDR_BRANCH_READY:-}" ] && [ -x "$YARDR_BRANCH_READY" ]; then
+    sh "$YARDR_BRANCH_READY" "${YARDR_BASE:-origin/main}" HEAD .
   else
-    echo "check: skipping branch-ready, no $branch_ready on this machine" >&2
+    echo "check: skipping branch-ready, YARDR_BRANCH_READY unset or not executable" >&2
   fi
 fi
 go vet ./... && go test ./...
